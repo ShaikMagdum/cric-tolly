@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRIC-TOLLY · Admin Control Panel</title>
+  <style>
+    :root {
+      --bg: #060911;
+      --panel: #0f172a;
+      --card: #1e293b;
+      --accent: #10b981;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: rgba(255, 255, 255, 0.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      padding-bottom: 80px;
+    }
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .brand { font-size: 20px; font-weight: 900; color: #fff; text-decoration: none; }
+    .brand span { color: var(--accent); }
+    .top-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    button, .btn-link {
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    button.primary { background: var(--accent); color: #04130d; border-color: var(--accent); }
+    button.danger { background: rgba(239,68,68,0.18); color: #fca5a5; border-color: rgba(239,68,68,0.4); }
+
+    .container { max-width: 1200px; margin: 24px auto; padding: 0 20px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+    @media (max-width: 920px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 22px;
+    }
+    .panel h2 { font-size: 17px; margin-bottom: 14px; color: #6ee7b7; }
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
+    input, select {
+      width: 100%;
+      background: #060911;
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 9px 11px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .item-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .item-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .srv-pill {
+      display: inline-block;
+      background: rgba(16,185,129,0.15);
+      color: #6ee7b7;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      margin: 3px 4px 0 0;
+    }
+    .status-toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--accent);
+      color: #04130d;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: 800;
+      display: none;
+      z-index: 999;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="/" class="brand">⚙️ CRIC-<span>TOLLY</span> ADMIN</a>
+    <div class="top-actions">
+      <a href="/" class="btn-link">← View Live Site</a>
+      <button class="primary" id="saveLocalBtn">💾 Save Changes (Instant)</button>
+      <button id="exportJsonBtn">⬇ Download data.json</button>
+      <button class="danger" id="resetLocalBtn">↺ Reset to Default data.json</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Site Banner & GitHub Direct Push Config -->
+    <div class="panel">
+      <h2>🌐 Global Banner & GitHub Repository Sync (Optional)</h2>
+      <div class="field-grid">
+        <div>
+          <label>Top Announcement Banner Text</label>
+          <input type="text" id="cfgAnnouncement" placeholder="Match announcement..." />
+        </div>
+        <div>
+          <label>GitHub Repo (e.g. ShaikMagdum/cric-tolly)</label>
+          <input type="text" id="ghRepo" placeholder="ShaikMagdum/cric-tolly" />
+        </div>
+        <div>
+          <label>GitHub Personal Access Token (for 1-Click Commit)</label>
+          <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxx" />
+        </div>
+      </div>
+      <button class="primary" id="pushGithubBtn">🚀 Commit & Push data.json to GitHub</button>
+    </div>
+
+    <div class="grid-2">
+      <!-- Left Column: Manage Live Match Events & Multi-Servers -->
+      <div>
+        <div class="panel">
+          <h2>🏏 Add / Update Match Event (Multi-Server)</h2>
+          <div class="field-grid">
+            <div>
+              <label>Event Slug ID (URL ?id=...)</label>
+              <input type="text" id="evId" placeholder="india-vs-new-zealand" />
+            </div>
+            <div>
+              <label>Match Title</label>
+              <input type="text" id="evTitle" placeholder="India vs New Zealand · Live" />
+            </div>
+            <div>
+              <label>Tournament</label>
+              <input type="text" id="evTournament" placeholder="ODI Series 2026" />
+            </div>
+            <div>
+              <label>Status</label>
+              <select id="evStatus">
+                <option value="LIVE">LIVE</option>
+                <option value="UPCOMING">UPCOMING</option>
+                <option value="COMPLETED">COMPLETED</option>
+              </select>
+            </div>
+            <div>
+              <label>Team 1 Name & Logo URL</label>
+              <input type="text" id="evTeam1" placeholder="India" style="margin-bottom:6px" />
+              <input type="url" id="evTeam1Logo" placeholder="https://.../india.png" />
+            </div>
+            <div>
+              <label>Team 2 Name & Logo URL</label>
+              <input type="text" id="evTeam2" placeholder="New Zealand" style="margin-bottom:6px" />
+              <input type="url" id="evTeam2Logo" placeholder="https://.../nz.png" />
+            </div>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;" />
+          <h3 style="font-size:14px;margin-bottom:10px;">➕ Attach Server to This Event</h3>
+          <div class="field-grid">
+            <div>
+              <label>Auto-Fill from Saved Channel Preset</label>
+              <select id="srvPresetPicker">
+                <option value="">-- Custom Server --</option>
+              </select>
+            </div>
+            <div>
+              <label>Server Button Label</label>
+              <input type="text" id="srvName" placeholder="Server 1 (Astro HD)" />
+            </div>
+            <div>
+              <label>Stream URL (.mpd or .m3u8)</label>
+              <input type="url" id="srvUrl" placeholder="https://..." />
+            </div>
+            <div>
+              <label>Format</label>
+              <select id="srvType">
+                <option value="dash">DASH (.mpd / Shaka)</option>
+                <option value="hls">HLS (.m3u8 / JW / HLS.js)</option>
+              </select>
+            </div>
+            <div>
+              <label>ClearKey KID (Optional)</label>
+              <input type="text" id="srvKid" placeholder="Hex KID" />
+            </div>
+            <div>
+              <label>ClearKey KEY (Optional)</label>
+              <input type="text" id="srvKey" placeholder="Hex KEY" />
+            </div>
+            <div>
+              <label>Custom Referer (Optional)</label>
+              <input type="text" id="srvReferer" placeholder="https://..." />
+            </div>
+            <div>
+              <label>Edge CORS Proxy</label>
+              <select id="srvProxy">
+                <option value="false">Auto Failover (Try Direct First)</option>
+                <option value="true">Force Edge Proxy Immediately</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-bottom:14px;">
+            <button type="button" id="addServerDraftBtn">+ Add Server to Draft List</button>
+            <button type="button" class="danger" id="clearServerDraftBtn">Clear Draft Servers</button>
+          </div>
+
+          <div id="draftServersBox" style="margin-bottom:14px;font-size:13px;color:var(--muted);">
+            Draft Servers: None added yet.
+          </div>
+
+          <button type="button" class="primary" id="saveEventBtn" style="width:100%;">✅ Save Match Event</button>
+        </div>
+
+        <div class="panel">
+          <h2>📋 Active Match Events</h2>
+          <div id="eventsAdminList"></div>
+        </div>
+      </div>
+
+      <!-- Right Column: Manage Preserved 24/7 Channel Presets -->
+      <div>
+        <div class="panel">
+          <h2>📺 Add / Update 24/7 Channel Preset</h2>
+          <div class="field-grid">
+            <div>
+              <label>Preset ID</label>
+              <input type="text" id="preId" placeholder="astro-cricket" />
+            </div>
+            <div>
+              <label>Channel Name</label>
+              <input type="text" id="preName" placeholder="Astro Cricket HD" />
+            </div>
+            <div>
+              <label>Category</label>
+              <input type="text" id="preCat" placeholder="24/7 Cricket" />
+            </div>
+            <div>
+              <label>Stream Format</label>
+              <select id="preType">
+                <option value="dash">DASH (.mpd)</option>
+                <option value="hls">HLS (.m3u8)</option>
+              </select>
+            </div>
+            <div>
+              <label>Stream URL</label>
+              <input type="url" id="preUrl" placeholder="https://..." />
+            </div>
+            <div>
+              <label>Referer Header (Optional)</label>
+              <input type="text" id="preReferer" placeholder="https://..." />
+            </div>
+            <div>
+              <label>ClearKey KID (Optional)</label>
+              <input type="text" id="preKid" placeholder="Hex KID" />
+            </div>
+            <div>
+              <label>ClearKey KEY (Optional)</label>
+              <input type="text" id="preKey" placeholder="Hex KEY" />
+            </div>
+          </div>
+          <button type="button" class="primary" id="savePresetBtn" style="width:100%;">✅ Save Channel Preset</button>
+        </div>
+
+        <div class="panel">
+          <h2>📡 Saved Channel Presets</h2>
+          <div id="presetsAdminList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-toast" id="toastEl">Saved!</div>
+
+  <script>
+    const STORAGE_KEY = "cric_tolly_custom_db_v1";
+    let dbState = { siteConfig: {}, presets: [], events: [] };
+    let draftServers = [];
+
+    function showToast(msg) {
+      const t = document.getElementById("toastEl");
+      t.textContent = msg;
+      t.style.display = "block";
+      setTimeout(() => { t.style.display = "none"; }, 2600);
+    }
+
+    async function initAdmin() {
+      try {
+        const res = await fetch("/data.json", { cache: "no-store" });
+        if (res.ok) dbState = await res.json();
+      } catch (_) {}
+
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try { dbState = JSON.parse(saved); } catch (_) {}
+      }
+
+      document.getElementById("cfgAnnouncement").value =
+        (dbState.siteConfig && dbState.siteConfig.announcement) || "";
+      document.getElementById("ghRepo").value = localStorage.getItem("cric_tolly_gh_repo") || "";
+      document.getElementById("ghToken").value = localStorage.getItem("cric_tolly_gh_token") || "";
+
+      renderAll();
+    }
+
+    function persistLocal() {
+      dbState.siteConfig = dbState.siteConfig || {};
+      dbState.siteConfig.announcement = document.getElementById("cfgAnnouncement").value.trim();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dbState));
+      renderAll();
+      showToast("Saved to Browser & Live Preview!");
+    }
+
+    function renderDraftServers() {
+      const box = document.getElementById("draftServersBox");
+      if (!draftServers.length) {
+        box.innerHTML = "Draft Servers: None added yet.";
+        return;
+      }
+      box.innerHTML = draftServers.map((s, idx) => `
+        <span class="srv-pill">
+          ${idx + 1}. ${s.name} (${s.type.toUpperCase()})
+          <b style="cursor:pointer;margin-left:6px;color:#fca5a5" onclick="removeDraftServer(${idx})">×</b>
+        </span>
+      `).join("");
+    }
+
+    window.removeDraftServer = (idx) => {
+      draftServers.splice(idx, 1);
+      renderDraftServers();
+    };
+
+    function renderAll() {
+      // Populate Preset Picker
+      const picker = document.getElementById("srvPresetPicker");
+      picker.innerHTML = `<option value="">-- Custom Server --</option>` +
+        (dbState.presets || []).map(p => `<option value="${p.id}">${p.name} (${p.type.toUpperCase()})</option>`).join("");
+
+      // Render Events List
+      const evBox = document.getElementById("eventsAdminList");
+      evBox.innerHTML = (dbState.events || []).map((ev, idx) => `
+        <div class="item-card">
+          <div class="item-head">
+            <div>
+              <strong>${ev.title}</strong>
+              <div style="font-size:12px;color:var(--muted)">ID: <code>${ev.id}</code> · ${ev.status}</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <a class="btn-link" href="/player?id=${encodeURIComponent(ev.id)}" target="_blank">▶ Test</a>
+              <button onclick="editEvent(${idx})">Edit</button>
+              <button class="danger" onclick="deleteEvent(${idx})">Delete</button>
+            </div>
+          </div>
+          <div>
+            ${(ev.servers || []).map(s => `<span class="srv-pill">${s.name}</span>`).join("")}
+          </div>
+        </div>
+      `).join("");
+
+      // Render Presets List
+      const preBox = document.getElementById("presetsAdminList");
+      preBox.innerHTML = (dbState.presets || []).map((p, idx) => `
+        <div class="item-card">
+          <div class="item-head">
+            <div>
+              <strong>${p.name}</strong>
+              <div style="font-size:12px;color:var(--muted)">ID: <code>${p.id}</code> · ${p.type.toUpperCase()}${p.kid ? " · DRM" : ""}</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <a class="btn-link" href="/player?channel=${encodeURIComponent(p.id)}" target="_blank">▶ Test</a>
+              <button onclick="editPreset(${idx})">Edit</button>
+              <button class="danger" onclick="deletePreset(${idx})">Delete</button>
+            </div>
+          </div>
+        </div>
+      `).join("");
+
+      renderDraftServers();
+    }
+
+    // Auto-fill Server inputs when selecting a Channel Preset
+    document.getElementById("srvPresetPicker").addEventListener("change", (e) => {
+      const id = e.target.value;
+      const p = (dbState.presets || []).find(item => item.id === id);
+      if (!p) return;
+      document.getElementById("srvName").value = p.name;
+      document.getElementById("srvUrl").value = p.url;
+      document.getElementById("srvType").value = p.type || "dash";
+      document.getElementById("srvKid").value = p.kid || "";
+      document.getElementById("srvKey").value = p.key || "";
+      document.getElementById("srvReferer").value = p.referer || "";
+      document.getElementById("srvProxy").value = p.proxy ? "true" : "false";
+    });
+
+    document.getElementById("addServerDraftBtn").addEventListener("click", () => {
+      const name = document.getElementById("srvName").value.trim() || `Server ${draftServers.length + 1}`;
+      const url = document.getElementById("srvUrl").value.trim();
+      if (!url) return alert("Enter a Stream URL for the server.");
+      draftServers.push({
+        name,
+        presetId: document.getElementById("srvPresetPicker").value || "",
+        url,
+        type: document.getElementById("srvType").value,
+        kid: document.getElementById("srvKid").value.trim(),
+        key: document.getElementById("srvKey").value.trim(),
+        referer: document.getElementById("srvReferer").value.trim(),
+        proxy: document.getElementById("srvProxy").value === "true"
+      });
+      document.getElementById("srvName").value = "";
+      document.getElementById("srvUrl").value = "";
+      renderDraftServers();
+    });
+
+    document.getElementById("clearServerDraftBtn").addEventListener("click", () => {
+      draftServers = [];
+      renderDraftServers();
+    });
+
+    document.getElementById("saveEventBtn").addEventListener("click", () => {
+      const id = document.getElementById("evId").value.trim().toLowerCase().replace(/\s+/g, "-");
+      const title = document.getElementById("evTitle").value.trim();
+      if (!id || !title) return alert("Event ID and Match Title are required.");
+      if (!draftServers.length) return alert("Add at least 1 server to the event before saving.");
+
+      const newEv = {
+        id,
+        title,
+        tournament: document.getElementById("evTournament").value.trim(),
+        status: document.getElementById("evStatus").value,
+        team1: document.getElementById("evTeam1").value.trim(),
+        team1Logo: document.getElementById("evTeam1Logo").value.trim(),
+        team2: document.getElementById("evTeam2").value.trim(),
+        team2Logo: document.getElementById("evTeam2Logo").value.trim(),
+        servers: [...draftServers]
+      };
+
+      const existingIdx = (dbState.events || []).findIndex(e => e.id === id);
+      if (existingIdx >= 0) dbState.events[existingIdx] = newEv;
+      else dbState.events.unshift(newEv);
+
+      draftServers = [];
+      persistLocal();
+    });
+
+    window.editEvent = (idx) => {
+      const ev = dbState.events[idx];
+      if (!ev) return;
+      document.getElementById("evId").value = ev.id || "";
+      document.getElementById("evTitle").value = ev.title || "";
+      document.getElementById("evTournament").value = ev.tournament || "";
+      document.getElementById("evStatus").value = ev.status || "LIVE";
+      document.getElementById("evTeam1").value = ev.team1 || "";
+      document.getElementById("evTeam1Logo").value = ev.team1Logo || "";
+      document.getElementById("evTeam2").value = ev.team2 || "";
+      document.getElementById("evTeam2Logo").value = ev.team2Logo || "";
+      draftServers = Array.isArray(ev.servers) ? [...ev.servers] : [];
+      renderDraftServers();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    window.deleteEvent = (idx) => {
+      if (!confirm("Delete this match event?")) return;
+      dbState.events.splice(idx, 1);
+      persistLocal();
+    };
+
+    document.getElementById("savePresetBtn").addEventListener("click", () => {
+      const id = document.getElementById("preId").value.trim().toLowerCase().replace(/\s+/g, "-");
+      const name = document.getElementById("preName").value.trim();
+      const url = document.getElementById("preUrl").value.trim();
+      if (!id || !name || !url) return alert("Preset ID, Name, and Stream URL are required.");
+
+      const newPre = {
+        id,
+        name,
+        category: document.getElementById("preCat").value.trim() || "24/7 Sports",
+        type: document.getElementById("preType").value,
+        url,
+        referer: document.getElementById("preReferer").value.trim(),
+        kid: document.getElementById("preKid").value.trim(),
+        key: document.getElementById("preKey").value.trim(),
+        proxy: false
+      };
+
+      const existingIdx = (dbState.presets || []).findIndex(p => p.id === id);
+      if (existingIdx >= 0) dbState.presets[existingIdx] = newPre;
+      else dbState.presets.push(newPre);
+
+      persistLocal();
+    });
+
+    window.editPreset = (idx) => {
+      const p = dbState.presets[idx];
+      if (!p) return;
+      document.getElementById("preId").value = p.id || "";
+      document.getElementById("preName").value = p.name || "";
+      document.getElementById("preCat").value = p.category || "";
+      document.getElementById("preType").value = p.type || "dash";
+      document.getElementById("preUrl").value = p.url || "";
+      document.getElementById("preReferer").value = p.referer || "";
+      document.getElementById("preKid").value = p.kid || "";
+      document.getElementById("preKey").value = p.key || "";
+    };
+
+    window.deletePreset = (idx) => {
+      if (!confirm("Delete this channel preset?")) return;
+      dbState.presets.splice(idx, 1);
+      persistLocal();
+    };
+
+    document.getElementById("saveLocalBtn").addEventListener("click", persistLocal);
+
+    document.getElementById("exportJsonBtn").addEventListener("click", () => {
+      persistLocal();
+      const blob = new Blob([JSON.stringify(dbState, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "data.json";
+      a.click();
+    });
+
+    document.getElementById("resetLocalBtn").addEventListener("click", () => {
+      if (!confirm("Discard local browser edits and reload default /data.json?")) return;
+      localStorage.removeItem(STORAGE_KEY);
+      location.reload();
+    });
+
+    // 1-Click GitHub Commit & Push
+    document.getElementById("pushGithubBtn").addEventListener("click", async () => {
+      persistLocal();
+      const repo = document.getElementById("ghRepo").value.trim();
+      const token = document.getElementById("ghToken").value.trim();
+      if (!repo || !token) return alert("Enter your GitHub Repo (owner/repo) and Personal Access Token.");
+
+      localStorage.setItem("cric_tolly_gh_repo", repo);
+      localStorage.setItem("cric_tolly_gh_token", token);
+
+      const apiUrl = `https://api.github.com/repos/${repo}/contents/data.json`;
+      try {
+        let sha = undefined;
+        const getRes = await fetch(apiUrl, {
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" }
+        });
+        if (getRes.ok) {
+          const fileMeta = await getRes.json();
+          sha = fileMeta.sha;
+        }
+
+        const contentBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(dbState, null, 2))));
+        const putRes = await fetch(apiUrl, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github+json",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            message: "Update data.json via CRIC-TOLLY Admin Panel",
+            content: contentBase64,
+            sha
+          })
+        });
+
+        if (putRes.ok) {
+          showToast("Pushed data.json to GitHub! Cloudflare Pages will deploy shortly.");
+        } else {
+          const err = await putRes.json();
+          alert("GitHub API Error: " + (err.message || putRes.status));
+        }
+      } catch (e) {
+        alert("Failed to push to GitHub: " + e.message);
+      }
+    });
+
+    initAdmin();
+  </script>
+</body>
+</html>

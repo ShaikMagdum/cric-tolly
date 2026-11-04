@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>CRIC-TOLLY Player</title>
+
+  <!-- Shaka Player UI & Library -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.ui.min.js"></script>
+
+  <!-- HLS.js Library -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
+
+  <!-- Optional JW Player Library -->
+  <!-- <script src="https://content.jwplatform.com/libraries/YOUR_JW_KEY.js"></script> -->
+
+  <style>
+    :root {
+      --bg-primary: #060911;
+      --bg-bar: #0f172a;
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.45);
+      --live: #ef4444;
+      --text-light: #f8fafc;
+      --text-dim: #94a3b8;
+      --border-subtle: rgba(255, 255, 255, 0.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg-primary);
+      color: var(--text-light);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .app-layout {
+      display: flex;
+      flex-direction: column;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* Top Header & Multi-Server Switcher Bar */
+    .header-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 16px;
+      background: var(--bg-bar);
+      border-bottom: 1px solid var(--border-subtle);
+      z-index: 70;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .back-btn {
+      text-decoration: none;
+      color: var(--text-light);
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid var(--border-subtle);
+      padding: 6px 11px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .back-btn:hover { background: rgba(255, 255, 255, 0.15); }
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(239, 68, 68, 0.18);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .live-dot {
+      width: 7px; height: 7px;
+      background: var(--live);
+      border-radius: 50%;
+      animation: blink 1.4s infinite;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .event-title {
+      font-size: 15px;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Server Buttons & Preset Selector */
+    .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .server-tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+    .srv-btn {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-light);
+      border: 1px solid var(--border-subtle);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+    .srv-btn:hover { background: rgba(255, 255, 255, 0.14); }
+    .srv-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #04130d;
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .preset-select {
+      background: #060911;
+      color: var(--text-light);
+      border: 1px solid var(--border-subtle);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Video Player Area */
+    #player-shell {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+    .engine-box {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      outline: none;
+    }
+
+    /* 3-Type Aspect Ratio Classes */
+    video.fit-contain, .fit-contain video { object-fit: contain !important; object-position: center center !important; }
+    video.fit-cover,   .fit-cover video   { object-fit: cover !important;   object-position: center center !important; }
+    video.fit-stretch, .fit-stretch video { object-fit: fill !important;    object-position: center center !important; }
+
+    /* Floating 3-Mode Fit Button */
+    #videoFitBtn {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 50;
+      background: rgba(15, 23, 42, 0.84);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      transition: opacity 0.25s ease;
+    }
+    #videoFitBtn:hover { background: rgba(30, 41, 59, 0.96); }
+    #videoFitBtn.controls-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Status / Error Overlay */
+    #playerMessage {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 60;
+      background: rgba(10, 14, 24, 0.92);
+      border: 1px solid var(--border-subtle);
+      padding: 14px 22px;
+      border-radius: 8px;
+      font-size: 14px;
+      text-align: center;
+      max-width: 85%;
+      display: none;
+    }
+    #playerMessage.show { display: block; }
+  </style>
+</head>
+<body>
+
+  <div class="app-layout">
+    <header class="header-bar">
+      <div class="header-left">
+        <a href="/" class="back-btn">← Home</a>
+        <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+        <h1 class="event-title" id="eventTitleEl">CRIC-TOLLY Stream</h1>
+      </div>
+
+      <div class="controls-right">
+        <div class="server-tabs" id="serverTabsEl"></div>
+        <select class="preset-select" id="quickPresetSelect" title="Switch to any 24/7 Channel Preset">
+          <option value="">📺 Switch Channel Preset...</option>
+        </select>
+      </div>
+    </header>
+
+    <main id="player-shell">
+      <div id="shaka-container" class="engine-box">
+        <video id="shaka-video" autoplay playsinline></video>
+      </div>
+      <div id="jw-container" class="engine-box"></div>
+
+      <button id="videoFitBtn" type="button">FIT: CONTAIN</button>
+      <div id="playerMessage"></div>
+    </main>
+  </div>
+
+  <script>
+  (() => {
+    "use strict";
+
+    const STORAGE_KEY = "cric_tolly_custom_db_v1";
+    const params = new URLSearchParams(location.search);
+    const eventId = (params.get("id") || "").trim().toLowerCase();
+    const channelId = (params.get("channel") || "").trim().toLowerCase();
+    const sourceUrl = params.get("url") || params.get("src") || params.get("stream") || "";
+    const streamName = params.get("name") || "";
+    const eventTitle = params.get("title") || "";
+    const category = params.get("category") || "";
+    const kid = (params.get("kid") || params.get("keyId") || "").trim();
+    const key = (params.get("key") || "").trim();
+    const explicitType = (params.get("type") || "").toLowerCase();
+    const customReferer = params.get("referer") || "";
+    const customOrigin = params.get("origin") || "";
+    const forceProxyParam = params.get("proxy") === "1" || params.get("proxy") === "true";
+
+    const shell = document.getElementById("player-shell");
+    const shakaContainer = document.getElementById("shaka-container");
+    const jwContainer = document.getElementById("jw-container");
+    const shakaVideo = document.getElementById("shaka-video");
+    const fitButton = document.getElementById("videoFitBtn");
+    const messageEl = document.getElementById("playerMessage");
+    const eventTitleEl = document.getElementById("eventTitleEl");
+    const serverTabsEl = document.getElementById("serverTabsEl");
+    const quickPresetSelect = document.getElementById("quickPresetSelect");
+
+    let shakaPlayer = null;
+    let shakaUi = null;
+    let hlsInstance = null;
+    let jwPlayer = null;
+    let activeEngine = "";
+    let retryCount = 0;
+    let retryTimer = null;
+    let stopped = false;
+    let fitModeIndex = 0;
+    let fitButtonHideTimer = null;
+    let fitButtonStarted = false;
+    let serversList = [];
+    let presetsList = [];
+    const FIT_BUTTON_HIDE_DELAY = 3000;
+
+    // 3-Mode Aspect Ratio Function
+    const fitModes = [
+      { key: "contain", label: "FIT: CONTAIN", hint: "Original / no crop" },
+      { key: "cover",   label: "FULL: COVER",  hint: "Fill screen / crop edges" },
+      { key: "stretch", label: "FULL: STRETCH", hint: "Fill screen / no black bars" }
+    ];
+
+    function showMessage(message) {
+      messageEl.textContent = message;
+      messageEl.classList.add("show");
+    }
+    function hideMessage() {
+      messageEl.textContent = "";
+      messageEl.classList.remove("show");
+    }
+
+    function validHttpUrl(value) {
+      try {
+        const parsed = new URL(value, location.href);
+        return ["http:", "https:"].includes(parsed.protocol) ? parsed.href : "";
+      } catch (_) { return ""; }
+    }
+
+    function wrapWithProxy(rawUrl, server) {
+      if (!rawUrl || rawUrl.includes("/api/proxy?url=")) return rawUrl;
+      const p = new URL("/api/proxy", location.origin);
+      p.searchParams.set("url", rawUrl);
+      if (server && server.referer) p.searchParams.set("referer", server.referer);
+      if (server && server.origin) p.searchParams.set("origin", server.origin);
+      return p.href;
+    }
+
+    function shouldUseProxyImmediately(server) {
+      if (server.proxy) return true;
+      if (server.referer || server.origin) return true;
+      if (location.protocol === "https:" && server.url.startsWith("http://")) return true;
+      return false;
+    }
+
+    function classifyStream(server) {
+      if (server.kid && server.key) return "dash";
+      const t = (server.type || "").toLowerCase();
+      if (t.includes("hls") || t.includes("m3u8")) return "hls";
+      if (t.includes("dash") || t.includes("mpd")) return "dash";
+      let path = "";
+      try { path = new URL(server.url).pathname.toLowerCase(); } catch (_) { path = String(server.url).toLowerCase(); }
+      if (/\.m3u8$/i.test(path) || server.url.toLowerCase().includes(".m3u8")) return "hls";
+      if (/\.mpd$/i.test(path) || server.url.toLowerCase().includes(".mpd")) return "dash";
+      return "dash";
+    }
+
+    async function enterPlayerFullscreen() {
+      try {
+        const active = document.fullscreenElement || document.webkitFullscreenElement;
+        if (!active) {
+          if (shell.requestFullscreen) await shell.requestFullscreen({ navigationUI: "hide" });
+          else if (shell.webkitRequestFullscreen) shell.webkitRequestFullscreen();
+          else if (shakaVideo.webkitEnterFullscreen) shakaVideo.webkitEnterFullscreen();
+        }
+      } catch (_) {}
+      try {
+        if (screen.orientation && screen.orientation.lock) {
+          await screen.orientation.lock("landscape").catch(() => {});
+        }
+      } catch (_) {}
+    }
+
+    function applyFitMode(index, requestFullscreen = false) {
+      fitModeIndex = (index + fitModes.length) % fitModes.length;
+      const mode = fitModes[fitModeIndex];
+
+      [shakaVideo].forEach(el => {
+        el.classList.remove("fit-contain", "fit-cover", "fit-stretch");
+        el.classList.add("fit-" + mode.key);
+      });
+      [shakaContainer, jwContainer].forEach(el => {
+        el.classList.remove("fit-contain", "fit-cover", "fit-stretch", "full-cover", "full-stretch");
+        el.classList.add("fit-" + mode.key);
+        if (mode.key === "cover") el.classList.add("full-cover");
+        if (mode.key === "stretch") el.classList.add("full-stretch");
+      });
+
+      fitButton.textContent = mode.label;
+      fitButton.title = mode.hint;
+      fitButton.setAttribute("aria-label", mode.hint);
+
+      const jwVideo = jwContainer.querySelector("video");
+      if (jwVideo) {
+        jwVideo.style.objectFit = mode.key === "cover" ? "cover" : mode.key === "stretch" ? "fill" : "contain";
+        jwVideo.style.objectPosition = "center center";
+      }
+      void shakaVideo.offsetWidth;
+      if (requestFullscreen && mode.key !== "contain") enterPlayerFullscreen();
+    }
+
+    fitButton.addEventListener("click", ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const next = fitModeIndex + 1;
+      applyFitMode(next, fitModes[(next + fitModes.length) % fitModes.length].key !== "contain");
+      showFitButton();
+    });
+
+    function showFitButton() {
+      fitButton.classList.remove("controls-hidden");
+      clearTimeout(fitButtonHideTimer);
+      fitButtonHideTimer = setTimeout(() => fitButton.classList.add("controls-hidden"), FIT_BUTTON_HIDE_DELAY);
+    }
+
+    function startFitButtonAutoHide() {
+      if (fitButtonStarted) return;
+      fitButtonStarted = true;
+      showFitButton();
+    }
+
+    shell.addEventListener("pointerdown", showFitButton, { passive: true });
+    shell.addEventListener("pointermove", showFitButton, { passive: true });
+    shell.addEventListener("touchstart", showFitButton, { passive: true });
+    fitButton.addEventListener("pointerdown", ev => { ev.stopPropagation(); showFitButton(); }, { passive: true });
+    shakaVideo.addEventListener("playing", startFitButtonAutoHide);
+    document.addEventListener("fullscreenchange", () => requestAnimationFrame(() => applyFitMode(fitModeIndex, false)));
+    document.addEventListener("webkitfullscreenchange", () => requestAnimationFrame(() => applyFitMode(fitModeIndex, false)));
+    applyFitMode(0, false);
+
+    function showEngine(engine) {
+      activeEngine = engine;
+      shakaContainer.style.display = engine === "jw" ? "none" : "block";
+      jwContainer.style.display = engine === "jw" ? "block" : "none";
+      fitButton.style.display = "block";
+      applyFitMode(fitModeIndex, false);
+    }
+
+    async function cleanupEngines() {
+      clearTimeout(retryTimer);
+      if (jwPlayer && typeof jwPlayer.remove === "function") {
+        try { jwPlayer.remove(); } catch (_) {}
+      }
+      jwPlayer = null;
+      jwContainer.innerHTML = "";
+
+      if (hlsInstance) {
+        try { hlsInstance.destroy(); } catch (_) {}
+        hlsInstance = null;
+      }
+
+      if (shakaUi) {
+        try { await shakaUi.destroy(); } catch (_) {}
+        shakaUi = null;
+      }
+      if (shakaPlayer) {
+        try { await shakaPlayer.destroy(); } catch (_) {}
+        shakaPlayer = null;
+      }
+      shakaVideo.removeAttribute("src");
+      shakaVideo.load();
+    }
+
+    // ENGINE 1: JW Player
+    function startJW(playUrl, server, usingProxy) {
+      if (stopped || typeof window.jwplayer !== "function") return false;
+      showEngine("jw");
+      jwContainer.innerHTML = '<div id="jw-hls-instance" style="position:absolute;inset:0;width:100%;height:100%"></div>';
+      jwPlayer = window.jwplayer("jw-hls-instance").setup({
+        file: playUrl,
+        width: "100%",
+        height: "100%",
+        aspectratio: "16:9",
+        autostart: true,
+        mute: false,
+        controls: true,
+        stretching: "uniform",
+        preload: "auto",
+        playbackRateControls: true
+      });
+
+      jwPlayer.on("ready", () => {
+        if (!jwPlayer || stopped) return;
+        try {
+          jwPlayer.addButton(
+            "https://i.ibb.co/4wPT214r/frame.png",
+            "Aspect Ratio",
+            () => applyFitMode(fitModeIndex + 1, false),
+            "aspect-button"
+          );
+        } catch (_) {}
+        applyFitMode(fitModeIndex, false);
+        startFitButtonAutoHide();
+      });
+
+      jwPlayer.on("play", () => { retryCount = 0; hideMessage(); startFitButtonAutoHide(); });
+      jwPlayer.on("firstFrame", hideMessage);
+      jwPlayer.on("buffer", () => showMessage("Buffering…"));
+      jwPlayer.on("error", () => {
+        if (!stopped) startHlsJs(playUrl, server, usingProxy);
+      });
+      return true;
+    }
+
+    // ENGINE 2: HLS.js (with Auto-Proxy Failover)
+    async function startHlsJs(playUrl, server, usingProxy = false) {
+      if (stopped) return;
+      await cleanupEngines();
+      showEngine("hls");
+      shakaVideo.controls = true;
+
+      if (window.Hls && Hls.isSupported()) {
+        hlsInstance = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          backBufferLength: 90,
+          manifestLoadingTimeOut: 12000
+        });
+
+        hlsInstance.loadSource(playUrl);
+        hlsInstance.attachMedia(shakaVideo);
+
+        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+          retryCount = 0;
+          hideMessage();
+          applyFitMode(fitModeIndex, false);
+          startFitButtonAutoHide();
+          shakaVideo.play().catch(() => {
+            shakaVideo.muted = true;
+            shakaVideo.play().catch(() => {});
+          });
+        });
+
+        hlsInstance.on(Hls.Events.ERROR, (_, data) => {
+          if (!data.fatal || stopped) return;
+          if (!usingProxy) {
+            showMessage("Bypassing CORS / Network restriction via CRIC-TOLLY Edge Proxy…");
+            const proxiedUrl = wrapWithProxy(server.url, server);
+            startHlsJs(proxiedUrl, server, true);
+            return;
+          }
+          if (retryCount < 2) {
+            retryCount++;
+            showMessage(`Reconnecting (${retryCount}/2)…`);
+            hlsInstance.startLoad();
+          } else {
+            startShaka(server.url, server, true, true);
+          }
+        });
+      } else if (shakaVideo.canPlayType("application/vnd.apple.mpegurl")) {
+        shakaVideo.src = playUrl;
+        shakaVideo.addEventListener("loadedmetadata", () => {
+          hideMessage();
+          shakaVideo.play().catch(() => {});
+        }, { once: true });
+      } else {
+        startShaka(server.url, server, usingProxy, true);
+      }
+    }
+
+    // ENGINE 3: Shaka Player (DASH + ClearKey DRM + Auto-Proxy Network Filter)
+    async function startShaka(rawUrl, server, usingProxy = false, isFinalFallback = false) {
+      if (stopped) return;
+      await cleanupEngines();
+      showEngine("dash");
+      shakaVideo.controls = false;
+      hideMessage();
+
+      if (!window.shaka) {
+        showMessage("Shaka Player library failed to load.");
+        return;
+      }
+      shaka.polyfill.installAll();
+      if (!shaka.Player.isBrowserSupported()) {
+        showMessage("This browser does not support Shaka Player.");
+        return;
+      }
+
+      shakaPlayer = new shaka.Player();
+      await shakaPlayer.attach(shakaVideo);
+      shakaUi = new shaka.ui.Overlay(shakaPlayer, shakaContainer, shakaVideo);
+
+      const clearKeys = {};
+      if (server.kid && server.key) {
+        clearKeys[server.kid.replace(/-/g, "").toLowerCase()] = server.key.replace(/-/g, "").toLowerCase();
+      }
+
+      shakaPlayer.configure({
+        drm: { clearKeys },
+        streaming: {
+          lowLatencyMode: true,
+          bufferingGoal: 10,
+          rebufferingGoal: 2,
+          retryParameters: { maxAttempts: 3, baseDelay: 700 }
+        }
+      });
+
+      if (usingProxy) {
+        shakaPlayer.getNetworkingEngine().registerRequestFilter((type, request) => {
+          request.uris = request.uris.map(u => {
+            if (u.startsWith(location.origin + "/api/proxy")) return u;
+            return wrapWithProxy(u, server);
+          });
+        });
+      }
+
+      try {
+        const targetToLoad = usingProxy ? wrapWithProxy(rawUrl, server) : rawUrl;
+        await shakaPlayer.load(targetToLoad);
+        await shakaVideo.play().catch(() => {
+          shakaVideo.muted = true;
+          shakaVideo.play().catch(() => {});
+        });
+        applyFitMode(fitModeIndex, false);
+        hideMessage();
+        startFitButtonAutoHide();
+      } catch (err) {
+        console.warn("Shaka load failed:", err);
+        if (!usingProxy) {
+          showMessage("Routing DASH stream via CRIC-TOLLY Edge Proxy…");
+          return startShaka(rawUrl, server, true, isFinalFallback);
+        }
+        if (!isFinalFallback) {
+          return startHlsJs(wrapWithProxy(rawUrl, server), server, true);
+        }
+        showMessage("Stream unavailable on this server. Try switching Server tabs above.");
+      }
+    }
+
+    async function selectServer(index) {
+      if (!serversList[index]) return;
+      retryCount = 0;
+
+      Array.from(serverTabsEl.children).forEach((btn, idx) => {
+        btn.classList.toggle("active", idx === index);
+      });
+
+      const srv = { ...serversList[index] };
+
+      // If server references a preserved presetId, inherit missing fields from preset
+      if (srv.presetId && presetsList.length) {
+        const foundPreset = presetsList.find(p => p.id === srv.presetId);
+        if (foundPreset) {
+          srv.url = srv.url || foundPreset.url;
+          srv.kid = srv.kid || foundPreset.kid;
+          srv.key = srv.key || foundPreset.key;
+          srv.type = srv.type || foundPreset.type;
+          srv.referer = srv.referer || foundPreset.referer;
+          if (srv.proxy === undefined) srv.proxy = foundPreset.proxy;
+        }
+      }
+
+      const validUrl = validHttpUrl(srv.url);
+      if (!validUrl) {
+        showMessage("Invalid stream URL configured for " + (srv.name || "this server"));
+        return;
+      }
+      srv.url = validUrl;
+
+      showMessage(`Loading ${srv.name || "Server " + (index + 1)}…`);
+      const useProxy = shouldUseProxyImmediately(srv);
+      const engineType = classifyStream(srv);
+
+      if (engineType === "hls") {
+        await cleanupEngines();
+        const initialUrl = useProxy ? wrapWithProxy(srv.url, srv) : srv.url;
+        if (!startJW(initialUrl, srv, useProxy)) {
+          await startHlsJs(initialUrl, srv, useProxy);
+        }
+      } else {
+        await startShaka(srv.url, srv, useProxy, false);
+      }
+    }
+
+    function renderServerTabs() {
+      serverTabsEl.innerHTML = "";
+      serversList.forEach((srv, idx) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "srv-btn" + (idx === 0 ? " active" : "");
+        btn.textContent = srv.name || `Server ${idx + 1}`;
+        btn.addEventListener("click", () => selectServer(idx));
+        serverTabsEl.appendChild(btn);
+      });
+    }
+
+    async function loadUnifiedDb() {
+      let db = { presets: [], events: [] };
+      try {
+        const res = await fetch("/data.json", { cache: "no-store" });
+        if (res.ok) db = await res.json();
+      } catch (_) {}
+
+      const localRaw = localStorage.getItem(STORAGE_KEY);
+      if (localRaw) {
+        try {
+          const parsed = JSON.parse(localRaw);
+          if (Array.isArray(parsed.events)) db.events = parsed.events;
+          if (Array.isArray(parsed.presets)) db.presets = parsed.presets;
+        } catch (_) {}
+      }
+      return db;
+    }
+
+    async function boot() {
+      const db = await loadUnifiedDb();
+      presetsList = Array.isArray(db.presets) ? db.presets : [];
+
+      // Populate Quick Channel Preset Dropdown in Player Header
+      presetsList.forEach(ch => {
+        const opt = document.createElement("option");
+        opt.value = ch.id;
+        opt.textContent = `📺 ${ch.name}`;
+        if (ch.id === channelId) opt.selected = true;
+        quickPresetSelect.appendChild(opt);
+      });
+
+      quickPresetSelect.addEventListener("change", () => {
+        const chosenId = quickPresetSelect.value;
+        if (!chosenId) return;
+        const chosenPreset = presetsList.find(p => p.id === chosenId);
+        if (chosenPreset) {
+          eventTitleEl.textContent = chosenPreset.name;
+          document.title = `${chosenPreset.name} · CRIC-TOLLY`;
+          serversList = [{ ...chosenPreset, name: chosenPreset.name }];
+          renderServerTabs();
+          selectServer(0);
+        }
+      });
+
+      // Mode 1: Event ID (?id=india-vs-new-zealand)
+      if (eventId) {
+        const events = Array.isArray(db.events) ? db.events : [];
+        const match = events.find(e => (e.id || "").toLowerCase() === eventId);
+        if (match && Array.isArray(match.servers) && match.servers.length) {
+          eventTitleEl.textContent = match.title || eventId.toUpperCase();
+          document.title = `${eventTitleEl.textContent} · CRIC-TOLLY`;
+          serversList = match.servers;
+          renderServerTabs();
+          await selectServer(0);
+          return;
+        }
+        eventTitleEl.textContent = "Event Not Found";
+        showMessage(`No servers found for event "${eventId}". Configure it in Admin Controls.`);
+        return;
+      }
+
+      // Mode 2: Channel Preset ID (?channel=astro-cricket)
+      if (channelId) {
+        const ch = presetsList.find(p => (p.id || "").toLowerCase() === channelId);
+        if (ch) {
+          eventTitleEl.textContent = ch.name;
+          document.title = `${ch.name} · CRIC-TOLLY`;
+          serversList = [{ ...ch, name: ch.name }];
+          renderServerTabs();
+          await selectServer(0);
+          return;
+        }
+        showMessage(`Channel preset "${channelId}" not found.`);
+        return;
+      }
+
+      // Mode 3: Direct Stream URL (?url=...)
+      if (sourceUrl) {
+        const titleText = eventTitle || streamName || "CRIC-TOLLY Live";
+        eventTitleEl.textContent = titleText;
+        document.title = [titleText, category || "CRIC-TOLLY"].filter(Boolean).join(" · ");
+        serversList = [
+          {
+            name: streamName || "Server 1",
+            url: sourceUrl,
+            kid,
+            key,
+            type: explicitType,
+            referer: customReferer,
+            origin: customOrigin,
+            proxy: forceProxyParam
+          }
+        ];
+        renderServerTabs();
+        await selectServer(0);
+        return;
+      }
+
+      showMessage("Select a Live Match or Channel Preset from the Home page.");
+    }
+
+    window.addEventListener("pagehide", async () => {
+      stopped = true;
+      clearTimeout(fitButtonHideTimer);
+      await cleanupEngines();
+    }, { once: true });
+
+    boot();
+  })();
+  </script>
+</body>
+</html>

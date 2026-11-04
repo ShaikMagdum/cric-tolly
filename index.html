@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRIC-TOLLY · Live Cricket & 24/7 Sports Streaming</title>
+  <style>
+    :root {
+      --bg: #060911;
+      --surface: #0f172a;
+      --surface-hover: #1e293b;
+      --accent: #10b981;
+      --accent-dark: #059669;
+      --live: #ef4444;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: rgba(255, 255, 255, 0.1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* Navbar */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .brand {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.6px;
+      color: #fff;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand span { color: var(--accent); }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-btn {
+      text-decoration: none;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .nav-btn:hover { background: rgba(255, 255, 255, 0.14); }
+    .nav-btn.admin {
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+    }
+
+    /* Announcement Banner */
+    .notice-bar {
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.15), rgba(59, 130, 246, 0.15));
+      border-bottom: 1px solid var(--border);
+      padding: 9px 20px;
+      text-align: center;
+      font-size: 13px;
+      color: #cbd5e1;
+    }
+
+    .container {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 28px 0 16px;
+    }
+    .section-head h2 {
+      font-size: 19px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    /* Match Events Grid */
+    .events-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+      gap: 18px;
+    }
+    .event-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 16px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .event-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(16, 185, 129, 0.5);
+    }
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .tournament-tag {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(239, 68, 68, 0.16);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .live-dot {
+      width: 7px; height: 7px;
+      background: var(--live);
+      border-radius: 50%;
+      animation: pulse 1.3s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .teams-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0;
+    }
+    .team-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .team-box img {
+      width: 36px; height: 36px;
+      object-fit: contain;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+      padding: 3px;
+    }
+    .vs-badge {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--muted);
+      background: rgba(255,255,255,0.05);
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .event-title-text {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .watch-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #04130d;
+      text-decoration: none;
+      padding: 11px 16px;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 800;
+      transition: background 0.2s;
+    }
+    .watch-btn:hover { background: #34d399; }
+
+    /* 24/7 Channel Presets Grid */
+    .channels-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 14px;
+    }
+    .channel-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-decoration: none;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+    .channel-card:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .channel-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+    .channel-type-badge {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #93c5fd;
+    }
+    .channel-name {
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .channel-cat {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Quick Custom URL Stream Launcher */
+    .quick-box {
+      margin-top: 36px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+    }
+    .quick-box h3 {
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+    .quick-box p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+    input, select {
+      background: #060911;
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      width: 100%;
+    }
+    .play-direct-btn {
+      margin-top: 14px;
+      background: var(--accent);
+      color: #04130d;
+      border: none;
+      padding: 11px 22px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="/" class="brand">🏏 CRIC-<span>TOLLY</span></a>
+    <div class="nav-links">
+      <a href="#eventsSection" class="nav-btn">Live Matches</a>
+      <a href="#channelsSection" class="nav-btn">24/7 Channels</a>
+      <a href="/admin.html" class="nav-btn admin">⚙️ Admin Controls</a>
+    </div>
+  </nav>
+
+  <div class="notice-bar" id="announcementBar">
+    Loading latest live streams & channel presets...
+  </div>
+
+  <div class="container">
+    <!-- Live Match Events Section -->
+    <div class="section-head" id="eventsSection">
+      <h2>🔴 Live Match Events (Multi-Server)</h2>
+    </div>
+    <div class="events-grid" id="eventsGrid"></div>
+
+    <!-- Preserved 24/7 Channel Presets Section -->
+    <div class="section-head" id="channelsSection">
+      <h2>📺 24/7 Sports Channel Presets</h2>
+    </div>
+    <div class="channels-grid" id="channelsGrid"></div>
+
+    <!-- Custom URL / DRM Stream Launcher -->
+    <div class="quick-box">
+      <h3>⚡ Instant Stream Player (Test Any HLS / DASH / ClearKey Link)</h3>
+      <p>Paste any direct `.m3u8` or `.mpd` link below. ClearKey DRM (`kid`/`key`) and Edge Proxy bypass are supported automatically.</p>
+      <form id="directStreamForm">
+        <div class="form-grid">
+          <input type="url" id="directUrl" placeholder="Stream URL (https://...m3u8 or .mpd)" required />
+          <input type="text" id="directName" placeholder="Stream Title (Optional)" />
+          <input type="text" id="directKid" placeholder="ClearKey KID (Hex, Optional)" />
+          <input type="text" id="directKey" placeholder="ClearKey KEY (Hex, Optional)" />
+          <input type="text" id="directReferer" placeholder="Custom Referer URL (Optional)" />
+          <select id="directType">
+            <option value="">Auto-Detect Format</option>
+            <option value="dash">Force DASH (Shaka Player)</option>
+            <option value="hls">Force HLS (JW / HLS.js)</option>
+          </select>
+        </div>
+        <button type="submit" class="play-direct-btn">Launch in Hybrid Player →</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "cric_tolly_custom_db_v1";
+
+    async function loadDatabase() {
+      let baseDb = { siteConfig: {}, presets: [], events: [] };
+      try {
+        const res = await fetch("/data.json", { cache: "no-store" });
+        if (res.ok) baseDb = await res.json();
+      } catch (e) {
+        console.warn("Could not fetch /data.json, using local fallback.");
+      }
+
+      // Merge any Admin overrides saved in browser localStorage
+      const savedRaw = localStorage.getItem(STORAGE_KEY);
+      if (savedRaw) {
+        try {
+          const localDb = JSON.parse(savedRaw);
+          if (Array.isArray(localDb.events)) baseDb.events = localDb.events;
+          if (Array.isArray(localDb.presets)) baseDb.presets = localDb.presets;
+          if (localDb.siteConfig) baseDb.siteConfig = { ...baseDb.siteConfig, ...localDb.siteConfig };
+        } catch (_) {}
+      }
+      return baseDb;
+    }
+
+    async function renderHome() {
+      const db = await loadDatabase();
+      const notice = document.getElementById("announcementBar");
+      const eventsGrid = document.getElementById("eventsGrid");
+      const channelsGrid = document.getElementById("channelsGrid");
+
+      notice.textContent =
+        (db.siteConfig && db.siteConfig.announcement) ||
+        "Welcome to CRIC-TOLLY — Select any Live Event or 24/7 Sports Channel Preset below.";
+
+      // Render Match Events
+      const events = Array.isArray(db.events) ? db.events : [];
+      if (events.length === 0) {
+        eventsGrid.innerHTML = `<p style="color:var(--muted)">No live match events configured. Add one in Admin Controls!</p>`;
+      } else {
+        eventsGrid.innerHTML = events.map(ev => {
+          const srvCount = Array.isArray(ev.servers) ? ev.servers.length : 0;
+          const hasTeams = ev.team1 && ev.team2;
+          return `
+            <div class="event-card">
+              <div>
+                <div class="card-top">
+                  <span class="tournament-tag">${ev.tournament || ev.category || "Live Cricket"}</span>
+                  <span class="live-pill"><span class="live-dot"></span>${ev.status || "LIVE"}</span>
+                </div>
+                ${hasTeams ? `
+                  <div class="teams-row">
+                    <div class="team-box">
+                      ${ev.team1Logo ? `<img src="${ev.team1Logo}" alt="${ev.team1}">` : ""}
+                      <span>${ev.team1}</span>
+                    </div>
+                    <span class="vs-badge">VS</span>
+                    <div class="team-box">
+                      <span>${ev.team2}</span>
+                      ${ev.team2Logo ? `<img src="${ev.team2Logo}" alt="${ev.team2}">` : ""}
+                    </div>
+                  </div>
+                ` : `<h3 class="event-title-text" style="margin:12px 0;">${ev.title}</h3>`}
+                <div style="font-size:13px;color:var(--muted);margin-top:4px;">${ev.title}</div>
+              </div>
+              <a class="watch-btn" href="/player?id=${encodeURIComponent(ev.id)}">
+                ▶ Watch Live (${srvCount} ${srvCount === 1 ? "Server" : "Servers"})
+              </a>
+            </div>
+          `;
+        }).join("");
+      }
+
+      // Render 24/7 Channel Presets
+      const presets = Array.isArray(db.presets) ? db.presets : [];
+      channelsGrid.innerHTML = presets.map(ch => `
+        <a class="channel-card" href="/player?channel=${encodeURIComponent(ch.id)}">
+          <div class="channel-meta">
+            <span class="channel-type-badge">${(ch.type || "AUTO").toUpperCase()}${ch.kid ? " · DRM" : ""}</span>
+            <span style="font-size:11px;color:var(--accent);">● LIVE</span>
+          </div>
+          <div class="channel-name">${ch.name}</div>
+          <div class="channel-cat">${ch.category || "Sports TV"}</div>
+        </a>
+      `).join("");
+    }
+
+    document.getElementById("directStreamForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const q = new URLSearchParams();
+      q.set("url", document.getElementById("directUrl").value.trim());
+      const title = document.getElementById("directName").value.trim();
+      const kid = document.getElementById("directKid").value.trim();
+      const key = document.getElementById("directKey").value.trim();
+      const referer = document.getElementById("directReferer").value.trim();
+      const type = document.getElementById("directType").value;
+
+      if (title) q.set("title", title);
+      if (kid) q.set("kid", kid);
+      if (key) q.set("key", key);
+      if (referer) q.set("referer", referer);
+      if (type) q.set("type", type);
+      location.href = `/player?${q.toString()}`;
+    });
+
+    renderHome();
+  </script>
+</body>
+</html>
